@@ -4,11 +4,15 @@
     #if breakfast or dinner and multiple 2 return error
     #if lunch or dinner and multiple 3 return error
     #if dinner and no 4 return error
-    #return order 
+    #return order
+
+import re
 
 class MenuSystem():
     def __init__(self):
-        self.breakfast = Menu(["Eggs",True], ["Toast",True], ["Coffee",False], [None, True])
+        self.Breakfast = Menu(("Eggs",True,True), ("Toast",True,True), ("Coffee",False,False), (None, True,False))
+        self.Lunch = Menu(("Sandwich",True,True), ("Chips",False,True), ("Soda",True,False), (None, True,False))
+        self.Dinner = Menu(("Steak",True,True), ("Potatoes",True,True), ("Wine",True,True), ("Cake",True,True))
 
     def run(self):
         while True:
@@ -17,92 +21,80 @@ class MenuSystem():
             self.getOrder(orderInput)
     
     def getOrder(self, orderInput):
-        cleanInput = orderInput.lower().split()
-        if cleanInput[0] == 'breakfast':
-            print(self.breakfast.setOrder(cleanInput[1].split(',')))
+        # check input format (requires alphanumeric characters followed by comma-separated numbers)
+        if re.match('^[a-zA-Z]+\s([1-4],)*[1-4]$', orderInput):
+            cleanInput = orderInput.lower().split()
+            if cleanInput[0] == 'breakfast':
+                print(self.Breakfast.setOrder(cleanInput[1].split(',')))
+            elif cleanInput[0] == 'lunch':
+                print(self.Lunch.setOrder(cleanInput[1].split(',')))
+            elif cleanInput[0] == 'dinner':
+                print(self.Dinner.setOrder(cleanInput[1].split(',')))
+            else:
+                print("Unable to Process: invalid menu type")
+        else:
+            print("Unable to Process: invalid input format")
+
 
 class Menu():
     def __init__(self, main, side, drink, dessert):
         # set menu
-        self.main = main[0]
-        self.side = side[0]
-        self.drink = drink[0]
-        self.dessert = dessert[0]
-        self.menu = [self.main, self.side, self.drink, self.dessert]
-        self.menu = [x for x in self.menu if x != None]
+        self.menu = {"main": main[0], "side": side[0], "drink": drink[0], "dessert": dessert[0]}
 
-        # set max
-        self.mainMax = main[1]
-        self.sideMax = side[1]
-        self.drinkMax = drink[1]
-        self.dessertMax = dessert[1]
+        # set requirements
+        self.menuLimits = {"main": main[1], "side": side[1], "drink": drink[1], "dessert": dessert[1]}
+        self.menuReqs = {"main": main[2], "side": side[2], "drink": drink[2], "dessert": dessert[2]}
     
     def setOrderCount(self, input):
-        # initialize order counts
-        self.mainCount = 0
-        self.sideCount = 0
-        self.drinkCount = 0
-        self.dessertCount = 0
+        # initialize order counts [main, side, drink, dessert]
+        self.itemCounts = [0,0,0,0]
 
         for i in input:
             i = int(i)
-            if i == 1:
-                self.mainCount += 1
-            elif i == 2:
-                self.sideCount += 1
-            elif i == 3:
-                self.drinkCount += 1
-            elif i == 4:
-                self.dessertCount += 1
+            self.itemCounts[i-1] += 1
+        
+        # store counts in a dict
+        self.menuCounts = {
+            "main": self.itemCounts[0], 
+            "side": self.itemCounts[1], 
+            "drink": self.itemCounts[2], 
+            "dessert": self.itemCounts[3]
+            }
     
     def setOrder(self, input):
         self.setOrderCount(input)
 
+        status = ""
         order = ""
         success = True
 
-        # check for requirements
-        if self.mainCount <= 0:
-            success = False
-            order = order + "Main is missing..."
-        elif self.mainMax and self.mainCount > 1:
-            success = False
-            order = order + f'{self.main} cannot be ordered more than once...'
-
-        if self.sideCount <= 0:
-            success = False
-            order = order + "Side is missing..."
-        elif self.sideMax and self.sideCount > 1:
-            success = False
-            order = order + f'{self.side} cannot be ordered more than once...'
-
-        if  self.drinkCount > 1 and self.drinkMax:
-            success = False
-            order = order + f'{self.drink} cannot be ordered more than once..'
-
-        if self.dessert == None and self.dessertCount > 0:
-            success = False
-            order = order + "Dessert unavailable..."
-        elif self.dessert != None and self.dessertCount <= 0:
-            success = False
-            order = order + "Dessert is missing..."
-        elif self.dessertMax and self.dessertCount > 1:
-            success = False
-            order = order + f'{self.dessert} cannot be ordered more than once...' 
-
-
+        #check requirements
+        for key in self.menu:
+            # only check existing menu items
+            if key != None:
+                # if required item is missing
+                if self.menuReqs[key]:
+                    if self.menuCounts[key] <= 0 and key != "drink":
+                        success = False
+                        status = status + f'{key} is missing...'
+                    elif key == "drink":
+                        order = order + "Water "
+                # if multiple of limited item ordered
+                if self.menuCounts[key] > 1:
+                    if self.menuLimits[key]:
+                        success = False
+                        status = status + f'{self.menu[key]} cannot be ordered more than once...'
+                    else:
+                        order = order + f'{self.menu[key]}({self.menuCounts[key]}) '
+                elif self.menuCounts[key] == 1:
+                    order = order + f'{self.menu[key]} '
+            
+        # set order result
         if success == False:
-            order = "Unable to Process: " + order
-        else:
-            #set order
-            if self.drinkCount <= 0:
-                order = f'{self.main}, {self.side}, Water'
-            else:
-                order = " ".join(self.menu)
-        
+            status = "Unable to Process: " + status
+            return status
+                
         return order
-        
-
 
 menuSystem = MenuSystem()
 menuSystem.run()
